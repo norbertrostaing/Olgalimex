@@ -7,12 +7,12 @@ TaskHandle_t TaskForOsc;
 
 void loopOsc() {
   OscWiFi.update();  // should be called to receive + send osc
-  delay(10);
 }
 
 void TaskForOscCode( void * pvParameters ){
   for(;;){
     loopOsc();
+    vTaskDelay(pdMS_TO_TICKS(3));
   } 
 }
 
@@ -54,7 +54,7 @@ void setupOSC() {
   xTaskCreatePinnedToCore(
                     TaskForOscCode,   /* Task function. */
                     "TaskForOsc",     /* name of task. */
-                    10000,       /* Stack size of task */
+                    2048,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
                     &TaskForOsc,      /* Task handle to keep track of created task */

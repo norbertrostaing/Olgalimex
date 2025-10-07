@@ -4,3 +4,6 @@
 extern byte dmxData[];
 
 void setupDMX();
+void onDmxFrame();
+
+extern int receivePin;

@@ -14,7 +14,7 @@ JsonDocument configOptions;
 int chipId;
 String chipName = "Olgalimex";
 
-int marker = 0xED;
+int eepromMarker = 0xED;
 
 void saveConfigToEEPROM() {
   // Sérialiser le JSON dans un buffer
@@ -58,12 +58,12 @@ bool loadConfigFromEEPROM() {
 
 bool isFirstBoot() {
   // Vérifier si une signature ou un drapeau est présent
-  return EEPROM.read(EEPROM_SIZE - 1) != marker; // marker comme marqueur
+  return EEPROM.read(EEPROM_SIZE - 1) != eepromMarker; // marker comme marqueur
 }
 
 void markAsBooted() {
   // Écrire le drapeau indiquant que ce n'est plus le premier démarrage
-  EEPROM.write(EEPROM_SIZE - 1, marker);
+  EEPROM.write(EEPROM_SIZE - 1, eepromMarker);
   EEPROM.commit();
 }
 

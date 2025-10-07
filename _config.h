@@ -7,6 +7,7 @@ extern JsonDocument info;
 extern JsonDocument trigger;
 extern int chipId;
 extern String chipName;
+extern int eepromMarker;
 
 void configUpdatedMain(String key);
 void configUpdatedWifi(String key);
