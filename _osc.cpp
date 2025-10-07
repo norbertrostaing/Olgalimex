@@ -54,7 +54,7 @@ void setupOSC() {
   xTaskCreatePinnedToCore(
                     TaskForOscCode,   /* Task function. */
                     "TaskForOsc",     /* name of task. */
-                    2048,       /* Stack size of task */
+                    4096,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
                     &TaskForOsc,      /* Task handle to keep track of created task */
