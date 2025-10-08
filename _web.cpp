@@ -79,7 +79,7 @@ String getHTMLPage(String msg) {
     "label {width:200px; display:inline-block; text-align:right; padding-right:5px;}"
     "#submit {width:150px;}"
     "#msg {position:absolute; border:1px solid green; background-color:#AAFFAA; display:inline-block; padding:5px 20px; left:100px; top:20px}"
-    ".trigger {margin:10px; padding:10px;}"
+    ".trigger {margin:20px; padding:20px;}"
     "</style>"
     "</head>"
     "<body>"
@@ -93,7 +93,7 @@ String getHTMLPage(String msg) {
     html += "<h2>Triggers</h2>";
     for (JsonPair kv : trigger.as<JsonObject>()) {
         String k = kv.key().c_str();
-        html += "<a href='/?trigger="+k+"'><input class='trigger' type='button' value='"+k+"'></a><br />";
+        html += "<a href='/?trigger="+k+"'><input class='trigger' type='button' value='"+k+"'></a>";
     }
     html +=
     "<h2>Infos</h2>"
