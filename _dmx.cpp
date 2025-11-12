@@ -40,7 +40,7 @@ void loopDMX() {
         dmxIsConnected = true;
       }
       dmx_read(dmxPort, dmxDataRcv, packet.size);
-      if (packet.size == 513) {
+      if (packet.size >= 512) {
         memcpy(dmxData, dmxDataRcv, 512);
         onDmxFrame();
         vTaskDelay(pdMS_TO_TICKS(10));
