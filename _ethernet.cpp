@@ -2,85 +2,111 @@
 
 TaskHandle_t TaskForEthernet;
 
-bool ethernetConnected = false;
+bool pleaseReconfigureEthernet = false;
 
-void updateIpAddress() {
-  IPAddress noIP(0,0,0,0);
-  IPAddress staticIP;
-  IPAddress staticSM;
-  staticIP.fromString(config["ethernet/staticIP"].as<String>());
-  staticSM.fromString(config["ethernet/staticSM"].as<String>());
-  ETH.config(noIP, noIP, noIP);
-  vTaskDelay(pdMS_TO_TICKS(100));
-  if (staticIP != noIP && staticSM != noIP) {
-    ETH.config(staticIP, noIP, staticSM);
-  } else {
-    bool validIP = false;
-    for (int i = 0; i < 10 && !validIP; i++) {
-      validIP = ETH.localIP() != IPAddress(0,0,0,0);
-      vTaskDelay(pdMS_TO_TICKS(100));
-    }
-    if (!validIP) {
-      uint8_t x = (chipId >> 8) & 0xFF;  // Bits 8 à 15
-      uint8_t y = chipId & 0xFF;        
-      IPAddress autoIP(169, 254, x, y);
-      IPAddress subnet(255, 255, 0, 0);
-      ETH.config(autoIP, noIP, subnet);   
-      vTaskDelay(pdMS_TO_TICKS(200));     
-    }
-  }
-  info["ethernet/IP"] = ETH.localIP();
-  info["ethernet/SM"] = ETH.subnetMask();
-  Serial.println(ETH.localIP());
+void updateIpAddress()
+{
+	IPAddress noIP(0, 0, 0, 0);
+
+	IPAddress staticIP;
+	IPAddress staticSM;
+
+	bool validIP = staticIP.fromString( config["ethernet/staticIP"].as<String>() );
+	bool validSM = staticSM.fromString( config["ethernet/staticSM"].as<String>() );
+
+	info["ethernet/IP"] = "connecting";
+	info["ethernet/SM"] = "connecting";
+
+	if (validIP && validSM)
+	{
+		ETH.config(staticIP, noIP, staticSM);
+	}
+	else
+	{
+		ETH.config(noIP, noIP, noIP);
+	}
 }
 
 void loopEthernet() {
-    /*
-    if (!ethernetConnected && ETH.linkUp()) {
-      updateIpAddress();
-      Serial.println("connected");
-      ethernetConnected = true;
-
-    } else if (ethernetConnected && !ETH.linkUp()) {
-      Serial.println("disconnected");
-      ethernetConnected = false;
-      ETH.config(IPAddress(0,0,0,0),IPAddress(0,0,0,0),IPAddress(0,0,0,0));
-      info["ethernet/IP"] = "not connected";
-      info["ethernet/SM"] = "not connected";
-    }
-    */
-    vTaskDelay(pdMS_TO_TICKS(1000));
+		if (pleaseReconfigureEthernet) {
+			updateIpAddress();
+			pleaseReconfigureEthernet = false;
+		}
+		vTaskDelay(pdMS_TO_TICKS(2000));
 }
 
 void TaskForEthernetCode( void * pvParameters ){
-  for(;;){
-    loopEthernet();
-  } 
+	for(;;){
+		loopEthernet();
+	} 
+}
+
+void onNetworkEvent(WiFiEvent_t event) {
+	switch (event)
+		{
+		case ARDUINO_EVENT_ETH_START:
+			Serial.println("Ethernet démarré");
+			break;
+
+		case ARDUINO_EVENT_ETH_CONNECTED:
+			Serial.println("Câble Ethernet connecté");
+			ethernetIsConnected = true;
+			break;
+
+		case ARDUINO_EVENT_ETH_GOT_IP:
+			ethernetIsConnected = true;
+
+			info["ethernet/IP"] = ETH.localIP().toString();
+			info["ethernet/SM"] = ETH.subnetMask().toString();
+
+			Serial.print("Ethernet connecté, IP : ");
+			Serial.println(ETH.localIP());
+			break;
+
+		case ARDUINO_EVENT_ETH_DISCONNECTED:
+			ethernetIsConnected = false;
+
+			info["ethernet/IP"] = "not connected";
+			info["ethernet/SM"] = "not connected";
+
+			Serial.println("Câble Ethernet débranché");
+			break;
+
+		case ARDUINO_EVENT_ETH_STOP:
+			ethernetIsConnected = false;
+			Serial.println("Ethernet arrêté");
+			break;
+
+		default:
+			break;
+	}
 }
 
 void setupEthernet() {
-  ETH.begin();
+	addStringConfig("ethernet/staticIP", "");
+	addStringConfig("ethernet/staticSM", "");
+	info["ethernet/IP"] = "not connected";
+	info["ethernet/SM"] = "not connected";
 
-  addStringConfig("ethernet/staticIP", "");
-  addStringConfig("ethernet/staticSM", "");
-  info["ethernet/IP"] = "not connected";
-  info["ethernet/SM"] = "not connected";
-  updateIpAddress();
-  // xTaskCreatePinnedToCore(
-  //                   TaskForEthernetCode,   /* Task function. */
-  //                   "TaskForEthernet",     /* name of task. */
-  //                   2048,       /* Stack size of task */
-  //                   NULL,        /* parameter of the task */
-  //                   1,           /* priority of the task */
-  //                   &TaskForEthernet,      /* Task handle to keep track of created task */
-  //                   1);          /* pin task to core 0 */                  
-  
+	WiFi.onEvent(onNetworkEvent);
+	delay(100);
+	ETH.begin();
+	updateIpAddress();
+	xTaskCreatePinnedToCore(
+		TaskForEthernetCode,   /* Task function. */
+		"TaskForEthernet",     /* name of task. */
+		2048,       /* Stack size of task */
+		NULL,        /* parameter of the task */
+		1,           /* priority of the task */
+		&TaskForEthernet,      /* Task handle to keep track of created task */
+		1);          /* pin task to core 0 */                  
+	
  
 }
 
 void configUpdatedEthernet(String k) {
-  if (k == "ethernet/staticIP" || k == "ethernet/staticSM") {
-    updateIpAddress();
-  }
+	if (k == "ethernet/staticIP" || k == "ethernet/staticSM") {
+		pleaseReconfigureEthernet = true;
+	}
 }
 

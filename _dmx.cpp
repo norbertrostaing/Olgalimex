@@ -50,7 +50,7 @@ void loopDMX() {
         if (packetErrors > 44) {
         dmx_driver_delete(dmxPort);
         setupDriver();
-        Serial.println("reboot DMX Service");
+        //Serial.println("reboot DMX Service");
         }
       }
     } else {

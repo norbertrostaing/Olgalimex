@@ -27,32 +27,36 @@ void setupWebServer() {
 
     // Send a POST request to <IP>/post with a form field message set to <message>
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request){
-        for (JsonPair kv : config.as<JsonObject>()) {
-            String k = kv.key().c_str();
-            if (request->hasParam(k, true) && configTypes[k].as<String>() == "b") {
-                writeConfig(k,request->getParam(k, true)->value() == "yes");
+        for (int i = 0; i< request->params(); i++) {
+            AsyncWebParameter* p = request->getParam(i);
+            String k = p->name();
+            String postValue = p->value();
+            if (!configTypes.containsKey(k)) continue;
+            String type = configTypes[k].as<String>();
+            if (type == "b") {
+                writeConfig(k,postValue == "yes");
             }
-            if (request->hasParam(k, true) && configTypes[k].as<String>() == "i") {
-                int v = request->getParam(k, true)->value().toInt();
+            else if (type == "i") {
+                int v = postValue.toInt();
                 if (!configOptions[k]["rangeMin"].isNull()) {
                     v = max(v, configOptions[k]["rangeMin"].as<int>());
                     v = min(v, configOptions[k]["rangeMax"].as<int>());
                 }
                 writeConfig(k,v);
             }
-            if (request->hasParam(k, true) && configTypes[k].as<String>() == "f") {
-                float v = request->getParam(k, true)->value().toFloat();
+            else if (type == "f") {
+                float v = postValue.toFloat();
                 if (!configOptions[k]["rangeMin"].isNull()) {
                     v = max(v, configOptions[k]["rangeMin"].as<float>());
                     v = min(v, configOptions[k]["rangeMax"].as<float>());
                 }
                 writeConfig(k,v);
             }
-            if (request->hasParam(k, true) && configTypes[k].as<String>() == "s") {
-                writeConfig(k,request->getParam(k, true)->value());
+            else if (type == "s") {
+                writeConfig(k,postValue);
             }
-            if (request->hasParam(k, true) && configTypes[k].as<String>() == "e") {
-                String val = request->getParam(k, true)->value();
+            else if (type == "e") {
+                String val = postValue;
                 bool valid = false;
                 for (JsonVariant value : configOptions[k]["options"].as<JsonArray>()) {
                     valid = valid || value.as<String>() == val;

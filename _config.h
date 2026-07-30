@@ -9,6 +9,10 @@ extern int chipId;
 extern String chipName;
 extern int eepromMarker;
 
+extern bool wifiIsConnected;
+extern bool ethernetIsConnected;
+extern bool oscNeedReboot;
+
 void configUpdatedMain(String key);
 void configUpdatedWifi(String key);
 void configUpdatedEthernet(String key);
@@ -42,7 +46,12 @@ int getConfig(String key, int def, int exclude);
 float getConfig(String key, float def, float exclude);
 
 void writeConfig(String key, bool value);
-void writeConfig(String key, int value);
+void writeConfig(String key, int value) ;
 void writeConfig(String key, float value);
 void writeConfig(String key, String value);
+
+void writeConfig(String key, bool value, bool force);
+void writeConfig(String key, int value, bool force) ;
+void writeConfig(String key, float value, bool force);
+void writeConfig(String key, String value, bool force);
 
