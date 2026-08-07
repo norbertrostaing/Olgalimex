@@ -11,6 +11,7 @@ JsonDocument trigger;
 JsonDocument configTypes;
 JsonDocument configOptions;
 
+bool configHasBeenReset = false;
 bool wifiIsConnected = false;
 bool ethernetIsConnected = false;
 bool oscNeedReboot = false;
@@ -72,6 +73,7 @@ bool isFirstBoot() {
 }
 
 void markAsBooted() {
+	configHasBeenReset = true;
 	// Écrire le drapeau indiquant que ce n'est plus le premier démarrage
 	EEPROM.write(EEPROM_SIZE - 1, eepromMarker);
 	EEPROM.commit();

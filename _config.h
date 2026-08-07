@@ -8,6 +8,8 @@ extern JsonDocument trigger;
 extern int chipId;
 extern String chipName;
 extern int eepromMarker;
+extern bool configHasBeenReset;
+
 
 extern bool wifiIsConnected;
 extern bool ethernetIsConnected;
