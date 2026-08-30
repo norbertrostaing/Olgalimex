@@ -41,7 +41,7 @@ void TaskForOscCode( void * pvParameters ){
       restartOscUdp();
     }
     loopOsc();
-    vTaskDelay(pdMS_TO_TICKS(3));
+    vTaskDelay(pdMS_TO_TICKS(1));
   } 
 }
 
