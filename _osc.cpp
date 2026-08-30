@@ -26,7 +26,12 @@ static bool restartOscUdp()
 }
 
 void loopOsc() {
-  OscWiFi.getServer(oscPort).parse();
+    auto& server = OscWiFi.getServer(oscPort);
+    for (int i = 0; i < 32; i++)
+    {
+        if (!server.parse())
+            break;
+    }
 }
 
 void TaskForOscCode( void * pvParameters ){
