@@ -2,47 +2,71 @@
 #include "_osc.h"
 
 int oscPort = 9004; 
+unsigned long messagesCount = 0;
 
-TaskHandle_t TaskForOsc;
+AsyncUDP oscUdp;
+
+struct ArduinoStringHash
+{
+    size_t operator()(const String& s) const
+    {
+        size_t hash = 5381;
+
+        for (size_t i = 0; i < s.length(); ++i)
+            hash = ((hash << 5) + hash) ^ s[i];
+
+        return hash;
+    }
+};
+
+static std::unordered_map<
+    String,
+    OscCallback,
+    ArduinoStringHash
+> oscCallbacks;
+
 
 static bool restartOscUdp()
 {
-    const auto& udpMap = OscWiFi.getUdpMap();
-    auto udpIterator = udpMap.find(oscPort);
+    oscUdp.close();
 
-    if (udpIterator == udpMap.end())
-    {
-        Serial.println("OSC: aucun socket UDP pour ce port");
-        return false;
-    }
+    bool success = oscUdp.listen(oscPort);
 
-    udpIterator->second->stop();
-    const bool success = udpIterator->second->begin(oscPort) == 1;
-
-    if (success) Serial.println("OSC: socket UDP redémarré");
-    else Serial.println("OSC: échec du redémarrage UDP");
+    if (success)
+        Serial.println("OSC: AsyncUDP redémarré");
+    else
+        Serial.println("OSC: échec du redémarrage AsyncUDP");
 
     return success;
 }
 
-void loopOsc() {
-    auto& server = OscWiFi.getServer(oscPort);
-    for (int i = 0; i < 32; i++)
-    {
-        if (!server.parse())
-            break;
-    }
+void oscSubscribe(const String& address, OscCallback callback)
+{
+    oscCallbacks[address] = std::move(callback);
 }
 
-void TaskForOscCode( void * pvParameters ){
-  for(;;){
-    if (oscNeedReboot) {
-      oscNeedReboot = false;
-      restartOscUdp();
+static void processOscPacket(AsyncUDPPacket& packet)
+{
+    OscDecoder decoder;
+
+    if (!decoder.init(packet.data(), packet.length()))
+        return;
+
+    OscMessage* message;
+
+    while ((message = decoder.decode()) != nullptr)
+    {
+        if (!message->available())
+            continue;
+        messagesCount++;
+        message->remoteIP(packet.remoteIP());
+        message->remotePort(packet.remotePort());
+
+        auto it = oscCallbacks.find(message->address());
+
+        if (it != oscCallbacks.end())
+            it->second(*message);
     }
-    loopOsc();
-    vTaskDelay(pdMS_TO_TICKS(1));
-  } 
 }
 
 void sendConfig(String k, String remoteIp) {
@@ -79,10 +103,9 @@ void sendInfo(String k, String remoteIp) {
 }
 
 void subscribeAll() {
-  auto& serv = OscWiFi.getServer(oscPort);
   for (JsonPair kv : config.as<JsonObject>()) {
     String k = kv.key().c_str();
-    serv.subscribe("/config/"+k, [k](const OscMessage& m){
+    oscSubscribe("/config/"+k, [k](const OscMessage& m){
       if (m.size()>0) {
         if (m.isBool(0)) {writeConfig(k, m.getArgAsBool(0));}
         else if (m.isFloat(0)) {writeConfig(k, m.getArgAsFloat(0));}
@@ -94,7 +117,7 @@ void subscribeAll() {
     } );
   }
 
-  serv.subscribe("/config", [](const OscMessage& m){
+  oscSubscribe("/config", [](const OscMessage& m){
       for (JsonPair kv : config.as<JsonObject>()) {
         String k = kv.key().c_str();
         sendConfig(k, m.remoteIP());
@@ -103,11 +126,11 @@ void subscribeAll() {
 
   for (JsonPair kv : trigger.as<JsonObject>()) {
     String k = kv.key().c_str();
-    serv.subscribe("/trigger/"+k, [k](const OscMessage& m){
+    oscSubscribe("/trigger/"+k, [k](const OscMessage& m){
       triggerTriggered(k);
     } );
   }
-  serv.subscribe("/trigger", [](const OscMessage& m){
+  oscSubscribe("/trigger", [](const OscMessage& m){
     for (JsonPair kv : trigger.as<JsonObject>()) {
       String k = kv.key().c_str();
       //OscWiFi.getClient().send(m.remoteIP(), oscPort, "/"+chipName+""+String(chipId)+"/trigger/"+k); 
@@ -116,11 +139,11 @@ void subscribeAll() {
 
   for (JsonPair kv : info.as<JsonObject>()) {
     String k = kv.key().c_str();
-    serv.subscribe("/info/"+k, [k](const OscMessage& m){
+    oscSubscribe("/info/"+k, [k](const OscMessage& m){
       sendInfo(k, m.remoteIP());
     } );
   }
-  serv.subscribe("/info", [](const OscMessage& m){
+  oscSubscribe("/info", [](const OscMessage& m){
       for (JsonPair kv : info.as<JsonObject>()) {
         String k = kv.key().c_str();
         sendInfo(k, m.remoteIP());
@@ -130,17 +153,14 @@ void subscribeAll() {
 
 }
 
-void setupOSC() {
-  subscribeAll();
-  xTaskCreatePinnedToCore(
-                    TaskForOscCode,   /* Task function. */
-                    "TaskForOsc",     /* name of task. */
-                    4096,       /* Stack size of task */
-                    NULL,        /* parameter of the task */
-                    1,           /* priority of the task */
-                    &TaskForOsc,      /* Task handle to keep track of created task */
-                    1);          /* pin task to core 0 */                  
+void setupOSC()
+{
+    subscribeAll();
+    oscUdp.onPacket([](AsyncUDPPacket packet)
+    {
+        processOscPacket(packet);
+    });
 
+    if (oscUdp.listen(oscPort)) Serial.println("OSC: AsyncUDP listening");
+    else Serial.println("OSC: impossible de démarrer AsyncUDP");
 }
-
-
