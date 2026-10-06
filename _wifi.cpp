@@ -117,7 +117,8 @@ void setupWifi() {
 
 	WiFi.mode(WIFI_MODE_NULL);
 	setDesiredMode();
-
+    loopWifi();
+	
 	xTaskCreatePinnedToCore(
 		TaskForWifiCode,   /* Task function. */
 		"TaskForWifi",     /* name of task. */
